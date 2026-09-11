@@ -1,0 +1,149 @@
+// backend/prisma/schema.prisma
+// PostgreSQL schema for the Real-Time Client Project Dashboard
+// See schema.md for the ERD, table rationale, and indexing justification.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+enum Role {
+  ADMIN
+  PM
+  DEVELOPER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  OVERDUE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Models
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  createdAt    DateTime @default(now())
+   tokenVersion Int @default(0)
+
+  // Projects this user created (only meaningful for ADMIN / PM)
+  createdProjects Project[]      @relation("ProjectCreator")
+  // Tasks assigned to this user (only meaningful for DEVELOPER)
+  assignedTasks   Task[]         @relation("TaskAssignee")
+  // Activity log entries this user generated
+  activityLogs    ActivityLog[]  @relation("ActivityActor")
+  // Notifications addressed to this user
+  notifications   Notification[] @relation("NotificationRecipient")
+
+  @@map("users")
+}
+
+model Client {
+  id        String    @id @default(uuid())
+  name      String
+  createdAt DateTime  @default(now())
+  projects  Project[]
+
+  @@map("clients")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  clientId    String
+  createdById String
+  createdAt   DateTime @default(now())
+
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdBy   User          @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  tasks       Task[]
+  activityLog ActivityLog[]
+
+  // PM-scoped queries filter on createdById; Admin queries skip this filter.
+  @@index([createdById])
+  @@map("projects")
+}
+
+model Task {
+  id             String     @id @default(uuid())
+  projectId      String
+  title          String
+  description    String?
+  assignedToId   String?
+  status         TaskStatus @default(TODO)
+  priority       Priority   @default(MEDIUM)
+  dueDate        DateTime
+  overdueFlagged Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedTo    User?          @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  activityLog   ActivityLog[]
+  notifications Notification[]
+
+  // status: dashboard counts filter by status constantly
+  @@index([status])
+  // due_date: overdue cron job scans this range every run
+  @@index([dueDate])
+  // assigned_to_id: developer dashboard "my tasks" query
+  @@index([assignedToId])
+  // project_id: task lists are always scoped to a project
+  @@index([projectId])
+  @@map("tasks")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  taskId    String?
+  projectId String
+  userId    String?
+  action    String
+  fromValue String?
+  toValue   String?
+  createdAt DateTime @default(now())
+
+  task    Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User?   @relation("ActivityActor", fields: [userId], references: [id], onDelete: SetNull)
+
+  // Composite index: feed queries are "latest N events for project X",
+  // this supports both the filter and the sort in a single pass.
+  @@index([projectId, createdAt(sort: Desc)])
+  @@map("activity_logs")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  taskId    String?
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User  @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  // Unread-count badge query runs on every page load and WS reconnect.
+  @@index([userId, read])
+  @@map("notifications")
+}
