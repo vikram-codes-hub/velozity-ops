@@ -13,13 +13,9 @@
 
 ## 🌐 Live Links & Deployment Previews
 
-> [!NOTE]
-> *Replace placeholder URLs below with your active production deployment endpoints.*
-
-- 🔗 **Live Web Application**: [https://velozity-ops.vercel.app](https://velozity-ops.vercel.app)
-- ⚡ **Backend REST & WebSocket Server**: [https://api.velozity-ops.com](https://api.velozity-ops.com)
-- 📖 **Postman API Collection / Documentation**: [https://api.velozity-ops.com/docs](https://api.velozity-ops.com/docs)
-- 📊 **Database Telemetry Console (Supabase/Postgres)**: [https://supabase.com/dashboard/project/velozity-ops](https://supabase.com/dashboard/project/velozity-ops)
+- 🔗 **Live Web Application (Vercel)**: [https://velozity-ops.vercel.app](https://velozity-ops.vercel.app)
+- ⚡ **Backend REST & WebSocket Server (Render)**: [https://velozity-backend-8fec.onrender.com](https://velozity-backend-8fec.onrender.com)
+- 📊 **Database Telemetry Console (Supabase/Postgres)**: [https://supabase.com](https://supabase.com)
 
 ---
 
@@ -110,12 +106,7 @@ NODE_ENV=development
 DATABASE_URL="postgresql://postgres:password@localhost:5432/velozity_ops?schema=public"
 JWT_ACCESS_SECRET="your-super-secret-access-token-key-32chars"
 JWT_REFRESH_SECRET="your-super-secret-refresh-token-key-32chars"
-CLIENT_URL="http://localhost:5173"
-
-# Optional AI Key Cascade (Gemini, Groq, or Grok)
-GEMINI_API_KEY="AIzaSyYourGeminiKeyHere"
-GROQ_API_KEY="gsk_YourGroqKeyHere"
-GROK_API_KEY="xai-YourGrokKeyHere"
+CLIENT_ORIGIN="https://velozity-ops.vercel.app,http://localhost:5173"
 ```
 
 ---
@@ -143,7 +134,8 @@ cd ../frontend
 ```
 Create `.env` file:
 ```env
-VITE_API_URL="http://localhost:4000"
+VITE_API_URL="https://velozity-backend-8fec.onrender.com"
+VITE_SOCKET_URL="https://velozity-backend-8fec.onrender.com"
 ```
 
 Install Dependencies & Start Vite Dev Server:
