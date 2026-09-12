@@ -564,27 +564,12 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
           </section>
 
           {/* Prominent Bottom Action to Download Very Detailed Report */}
-          <div className="user-detail-modal__bottom-report-action" style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1px solid var(--border)" }}>
+          <div className="user-detail-modal__bottom-report-action">
             <button
               type="button"
               className="button button--secondary full-width download-detailed-report-btn"
               onClick={handleDownloadFullReport}
               disabled={isLoadingTasks}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                justify-content: "center",
-                gap: "8px",
-                padding: "12px 18px",
-                fontSize: "13px",
-                fontWeight: 700,
-                background: "linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.25))",
-                border: "1px solid rgba(168, 85, 247, 0.5)",
-                color: "#e0e7ff",
-                borderRadius: "8px",
-                cursor: "pointer"
-              }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
