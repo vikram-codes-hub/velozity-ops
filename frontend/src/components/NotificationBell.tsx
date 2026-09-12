@@ -1,8 +1,3 @@
-// frontend/src/components/NotificationBell.tsx
-//
-// Badge + dropdown powered by useNotifications hook.
-// Badge count arrives live via WebSocket; dropdown list is fetched lazily on first open.
-
 import { useEffect, useRef, useState } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
@@ -24,7 +19,6 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click.
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -48,11 +42,15 @@ export function NotificationBell() {
     <div className="notification-bell" ref={containerRef}>
       <button
         type="button"
-        className="notification-bell__trigger"
+        className={`notification-bell__trigger ${isOpen ? 'notification-bell__trigger--active' : ''}`}
         onClick={toggleDropdown}
         aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
       >
-        🔔
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+
         {unreadCount > 0 && (
           <span className="notification-bell__badge">
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -63,22 +61,40 @@ export function NotificationBell() {
       {isOpen && (
         <div className="notification-bell__dropdown">
           <div className="notification-bell__header">
-            <span>Notifications</span>
+            <div className="notification-bell__title-group">
+              <span className="notification-bell__title">Notifications</span>
+              {unreadCount > 0 && (
+                <span className="badge badge--unread">{unreadCount} new</span>
+              )}
+            </div>
             {notifications.some((n) => !n.read) && (
-              <button type="button" onClick={markAllAsRead}>
+              <button type="button" className="notification-bell__mark-all" onClick={markAllAsRead}>
                 Mark all as read
               </button>
             )}
           </div>
 
-          {isLoading && <div className="notification-bell__state">Loading…</div>}
+          {isLoading && (
+            <div className="notification-bell__state">
+              <div className="spinner spinner--sm" />
+              <span>Loading notifications…</span>
+            </div>
+          )}
+
           {error && (
             <div className="notification-bell__state notification-bell__state--error">
               {error}
             </div>
           )}
+
           {!isLoading && !error && notifications.length === 0 && (
-            <div className="notification-bell__state">No notifications yet.</div>
+            <div className="notification-bell__state notification-bell__state--empty">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span>No notifications yet.</span>
+            </div>
           )}
 
           <ul className="notification-bell__list">
@@ -90,10 +106,13 @@ export function NotificationBell() {
                 }`}
                 onClick={() => !n.read && markAsRead(n.id)}
               >
-                <span className="notification-bell__message">{n.message}</span>
-                <span className="notification-bell__time">
-                  {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-                </span>
+                {!n.read && <span className="notification-bell__item-dot" />}
+                <div className="notification-bell__item-content">
+                  <span className="notification-bell__message">{n.message}</span>
+                  <span className="notification-bell__time">
+                    {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>

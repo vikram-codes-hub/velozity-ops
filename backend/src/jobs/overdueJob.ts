@@ -3,7 +3,7 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { Server } from 'socket.io';
 import { prisma } from '../lib/prisma';
-import { emitActivityEvent } from '../sockets';
+import { emitActivityEvent, emitNotification, emitUnreadCount } from '../sockets';
 
 // Every 5 minutes by default — frequent enough that "overdue" is never
 // stale for long, infrequent enough not to hammer the DB. Configurable via
@@ -94,6 +94,29 @@ export async function runOverdueSweep(io: Server): Promise<number> {
       createdAt: now.toISOString(),
       message: `Task "${t.title}" was automatically flagged Overdue`,
     });
+
+    if (t.assignedToId) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: t.assignedToId,
+          taskId: t.id,
+          message: `Task "${t.title}" is overdue!`,
+        },
+      });
+
+      emitNotification(io, {
+        id: notification.id,
+        userId: t.assignedToId,
+        message: notification.message,
+        taskId: t.id,
+        createdAt: now.toISOString(),
+      });
+
+      const unread = await prisma.notification.count({
+        where: { userId: t.assignedToId, read: false },
+      });
+      emitUnreadCount(io, t.assignedToId, unread);
+    }
   }
 
   console.log(`[overdue.job] flagged ${overdueTasks.length} task(s) as overdue`);

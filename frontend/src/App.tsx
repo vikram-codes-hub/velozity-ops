@@ -6,6 +6,8 @@ import AdminDashboardPage from "./pages/AdminDashboard";
 import AdminAuditLogPage from "./pages/AdminAuditLogPage";
 import PMDashboardPage from "./pages/PMDashboard";
 import DeveloperDashboardPage from "./pages/DeveloperDashboard";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
+import { AppLayout } from "./components/AppLayout";
 
 function ProtectedRoute({
   children,
@@ -30,7 +32,7 @@ function ProtectedRoute({
     return <Navigate to="/developer" replace />;
   }
 
-  return children;
+  return <AppLayout>{children}</AppLayout>;
 }
 
 export default function App() {
@@ -69,6 +71,14 @@ export default function App() {
         element={
           <ProtectedRoute allowedRoles={["DEVELOPER", "ADMIN"]}>
             <DeveloperDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/projects/:id"
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN", "PM", "DEVELOPER"]}>
+            <ProjectDetailPage />
           </ProtectedRoute>
         }
       />

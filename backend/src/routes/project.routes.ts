@@ -1,5 +1,3 @@
-
-
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
@@ -22,20 +20,21 @@ const listQuerySchema = z.object({
 const createProjectSchema = z.object({
   name: z.string().min(1),
   clientId: z.string().uuid(),
+  createdById: z.string().uuid().optional(),
 });
 
 const updateProjectSchema = z
   .object({
     name: z.string().min(1).optional(),
     clientId: z.string().uuid().optional(),
+    createdById: z.string().uuid().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided.',
   });
 
 // ---------------------------------------------------------------------------
-// Shared authorization helper — same 404-not-403 pattern as task.routes.ts:
-// don't confirm a project exists to someone outside its scope.
+// Shared authorization helper
 // ---------------------------------------------------------------------------
 
 async function loadAuthorizedProject(
@@ -86,18 +85,69 @@ router.get(
       } else if (req.user!.role === 'DEVELOPER') {
         where.tasks = { some: { assignedToId: req.user!.id } };
       }
-      // ADMIN: no additional scoping.
 
       const projects = await prisma.project.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         include: {
           client: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true, email: true, role: true } },
           _count: { select: { tasks: true } },
         },
       });
 
-      res.json({ projects });
+      // ---- per-project task analytics ----------------------------------------
+      // One grouped query for all projects returned above — avoids N+1 fetches.
+      const projectIds = projects.map((p) => p.id);
+
+      const [taskGroups, memberGroups] = await Promise.all([
+        // Task status breakdown per project
+        prisma.task.groupBy({
+          by: ['projectId', 'status'],
+          where: { projectId: { in: projectIds } },
+          _count: { id: true },
+        }),
+        // Distinct assignees per project (member count)
+        prisma.task.findMany({
+          where: {
+            projectId: { in: projectIds },
+            assignedToId: { not: null },
+          },
+          select: { projectId: true, assignedToId: true },
+          distinct: ['projectId', 'assignedToId'],
+        }),
+      ]);
+
+      // Build lookup maps
+      const taskCountsMap: Record<string, Record<string, number>> = {};
+      for (const row of taskGroups) {
+        if (!taskCountsMap[row.projectId]) taskCountsMap[row.projectId] = {};
+        taskCountsMap[row.projectId][row.status] = row._count.id;
+      }
+
+      const memberCountMap: Record<string, number> = {};
+      for (const row of memberGroups) {
+        memberCountMap[row.projectId] = (memberCountMap[row.projectId] ?? 0) + 1;
+      }
+
+      const enrichedProjects = projects.map((p) => {
+        const counts = taskCountsMap[p.id] ?? {};
+        const taskCounts = {
+          TODO:        counts['TODO']        ?? 0,
+          IN_PROGRESS: counts['IN_PROGRESS'] ?? 0,
+          IN_REVIEW:   counts['IN_REVIEW']   ?? 0,
+          DONE:        counts['DONE']        ?? 0,
+          OVERDUE:     counts['OVERDUE']     ?? 0,
+        };
+        return {
+          ...p,
+          taskCounts,
+          overdueCount: taskCounts.OVERDUE,
+          memberCount:  memberCountMap[p.id] ?? 0,
+        };
+      });
+
+      res.json({ projects: enrichedProjects });
     } catch (err) {
       next(err);
     }
@@ -117,13 +167,11 @@ router.get(
       const { id } = req.params as unknown as z.infer<typeof idParamSchema>;
       await loadAuthorizedProject(id, req.user!);
 
-      // Re-fetch with the includes now that authorization has passed —
-      // keeps loadAuthorizedProject's query lean for the common case
-      // where callers only need the pass/fail check (create/update/delete).
       const project = await prisma.project.findUnique({
         where: { id },
         include: {
           client: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true, email: true, role: true } },
           _count: { select: { tasks: true } },
         },
       });
@@ -137,9 +185,6 @@ router.get(
 
 // ---------------------------------------------------------------------------
 // POST /api/projects
-// ADMIN or PM only. createdById is always the caller — a PM cannot create
-// a project "on behalf of" another PM by passing a different id, because
-// there's no field in the request body for it at all.
 // ---------------------------------------------------------------------------
 
 router.post(
@@ -149,16 +194,28 @@ router.post(
   validate({ body: createProjectSchema }),
   async (req, res, next) => {
     try {
-      const { name, clientId } = req.body;
+      const { name, clientId, createdById } = req.body;
 
       const client = await prisma.client.findUnique({ where: { id: clientId } });
       if (!client) {
         throw new ApiError(404, 'NOT_FOUND', 'Client not found.');
       }
 
+      let ownerId = req.user!.id;
+      if (req.user!.role === 'ADMIN' && createdById) {
+        const pmUser = await prisma.user.findUnique({ where: { id: createdById } });
+        if (!pmUser) {
+          throw new ApiError(404, 'NOT_FOUND', 'Assigned Project Manager not found.');
+        }
+        ownerId = createdById;
+      }
+
       const project = await prisma.project.create({
-        data: { name, clientId, createdById: req.user!.id },
-        include: { client: { select: { id: true, name: true } } },
+        data: { name, clientId, createdById: ownerId },
+        include: {
+          client: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true, email: true, role: true } },
+        },
       });
 
       res.status(201).json({ project });
@@ -170,7 +227,6 @@ router.post(
 
 // ---------------------------------------------------------------------------
 // PATCH /api/projects/:id
-// ADMIN or PM(owner) only.
 // ---------------------------------------------------------------------------
 
 router.patch(
@@ -198,10 +254,20 @@ router.patch(
         }
       }
 
+      if (updates.createdById && req.user!.role === 'ADMIN') {
+        const pmUser = await prisma.user.findUnique({ where: { id: updates.createdById } });
+        if (!pmUser) {
+          throw new ApiError(404, 'NOT_FOUND', 'Assigned Project Manager not found.');
+        }
+      }
+
       const project = await prisma.project.update({
         where: { id },
         data: updates,
-        include: { client: { select: { id: true, name: true } } },
+        include: {
+          client: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true, email: true, role: true } },
+        },
       });
 
       res.json({ project });
@@ -213,12 +279,6 @@ router.patch(
 
 // ---------------------------------------------------------------------------
 // DELETE /api/projects/:id
-// ADMIN or PM(owner) only. Task.projectId -> CASCADE per schema, so this
-// removes the project's tasks too — ActivityLog rows for those tasks
-// cascade with them (ActivityLog.projectId -> CASCADE), which is a
-// deliberate trade-off: the audit trail for a deleted project doesn't
-// need to outlive the project itself. Worth a line in your README's
-// known-limitations section if you'd rather it were a soft delete instead.
 // ---------------------------------------------------------------------------
 
 router.delete(

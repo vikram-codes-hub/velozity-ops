@@ -16,7 +16,7 @@
 //   user:<userId>:notifications - everyone auto-joins
 
 import { io, type Socket } from "socket.io-client";
-import type { ActivityEvent, AppNotification } from "../hooks/Domain";
+import type { ActivityEvent, AppNotification } from "../types/domain";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? "http://localhost:4000";
 
@@ -88,8 +88,12 @@ export function onNotification(callback: (notification: AppNotification) => void
 }
 
 export function onUnreadCount(callback: (count: number) => void): () => void {
-  socket?.on("notification:unreadCount", callback);
-  return () => socket?.off("notification:unreadCount", callback);
+  const handler = (data: { count: number } | number) => {
+    const count = typeof data === "number" ? data : data?.count ?? 0;
+    callback(count);
+  };
+  socket?.on("notification:unread-count", handler);
+  return () => socket?.off("notification:unread-count", handler);
 }
 
 export function onPresenceUpdate(callback: (onlineCount: number) => void): () => void {

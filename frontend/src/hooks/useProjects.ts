@@ -35,8 +35,8 @@ export function useProjects(): UseProjectsResult {
     setIsLoading(true);
     setError(null);
     try {
-      const { data } = await apiClient.get<Project[]>("/api/projects");
-      setProjects(data);
+      const { data } = await apiClient.get<{ projects: Project[] }>("/api/projects");
+      setProjects(data.projects);
     } catch (err) {
       setError("Couldn't load projects.");
     } finally {
@@ -49,11 +49,9 @@ export function useProjects(): UseProjectsResult {
   }, [fetchProjects]);
 
   const createProject = useCallback(async (input: CreateProjectInput) => {
-    const { data } = await apiClient.post<Project>("/api/projects", input);
-    // Prepend rather than refetch — avoids a redundant round trip and keeps
-    // the newest project visible at the top immediately.
-    setProjects((prev) => [data, ...prev]);
-    return data;
+    const { data } = await apiClient.post<{ project: Project }>("/api/projects", input);
+    setProjects((prev) => [data.project, ...prev]);
+    return data.project;
   }, []);
 
   return { projects, isLoading, error, refetch: fetchProjects, createProject };

@@ -50,18 +50,16 @@ export function useAdminStats(): AdminStats {
       try {
         // Fetch projects count & tasks overview in parallel
         const [projectsRes, tasksRes] = await Promise.all([
-          apiClient.get<any[]>("/api/projects").catch(() => ({ data: [] })),
-          apiClient.get<{ data?: any[]; tasks?: any[] }>("/api/tasks?limit=100").catch(() => ({ data: { data: [] } })),
+          apiClient.get<{ projects: any[] }>("/api/projects").catch(() => ({ data: { projects: [] } })),
+          apiClient.get<{ tasks: any[]; nextCursor: string | null }>("/api/tasks?limit=100").catch(() => ({ data: { tasks: [], nextCursor: null } })),
         ]);
 
         if (cancelled) return;
 
-        const projects = projectsRes.data ?? [];
+        const projects = projectsRes.data.projects ?? [];
         setTotalProjects(projects.length);
 
-        const rawTasks = Array.isArray(tasksRes.data)
-          ? tasksRes.data
-          : tasksRes.data?.data ?? tasksRes.data?.tasks ?? [];
+        const rawTasks = tasksRes.data.tasks ?? [];
 
         const counts: Record<TaskStatus, number> = { ...INITIAL_TASKS_BY_STATUS };
         let overdue = 0;

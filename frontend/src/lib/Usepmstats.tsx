@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import { useProjects } from "../hooks/useProjects";
 import { useTasks } from "../hooks/useTasks";
-import type { Priority, Task } from "../hooks/Domain";
+import type { Priority, Task } from "../types/domain";
 
 const PRIORITY_ORDER: Priority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;

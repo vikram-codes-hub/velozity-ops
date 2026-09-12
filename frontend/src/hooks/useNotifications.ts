@@ -49,7 +49,19 @@ export function useNotifications(): UseNotificationsResult {
   const cursorRef = useRef<string | null>(null);
   const hasLoadedOnce = useRef(false);
 
-  // Badge count: WS-only, per the existing NotificationBell design.
+  // Fetch initial unread count on mount via REST API
+  useEffect(() => {
+    apiClient
+      .get<{ count: number }>("/api/notifications/unread-count")
+      .then(({ data }) => {
+        if (typeof data?.count === "number") {
+          setUnreadCount(data.count);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Badge count updates via WebSocket pushes
   useEffect(() => {
     const unsubscribe = subscribeToUnreadCount((count: number) => {
       setUnreadCount(count);
@@ -57,12 +69,11 @@ export function useNotifications(): UseNotificationsResult {
     return unsubscribe;
   }, [subscribeToUnreadCount]);
 
-  // New notifications pushed live: prepend if the dropdown has already
-  // been opened at least once, so we don't show a stale list next open.
+  // New notifications pushed live: prepend to state and update badge count
   useEffect(() => {
     const unsubscribe = subscribeToNotifications((notification: AppNotification) => {
-      if (!hasLoadedOnce.current) return;
       setNotifications((prev) => [notification, ...prev]);
+      setUnreadCount((prev) => prev + 1);
     });
     return unsubscribe;
   }, [subscribeToNotifications]);
@@ -71,11 +82,11 @@ export function useNotifications(): UseNotificationsResult {
     setIsLoading(true);
     setError(null);
     try {
-      const { data } = await apiClient.get<CursorPage<AppNotification>>(
+      const { data } = await apiClient.get<{ notifications: AppNotification[]; nextCursor: string | null }>(
         "/api/notifications",
         { params: { limit: PAGE_SIZE } }
       );
-      setNotifications(data.data);
+      setNotifications(data.notifications);
       cursorRef.current = data.nextCursor;
       hasLoadedOnce.current = true;
     } catch (err) {
@@ -90,11 +101,11 @@ export function useNotifications(): UseNotificationsResult {
     setIsLoadingMore(true);
     setError(null);
     try {
-      const { data } = await apiClient.get<CursorPage<AppNotification>>(
+      const { data } = await apiClient.get<{ notifications: AppNotification[]; nextCursor: string | null }>(
         "/api/notifications",
         { params: { limit: PAGE_SIZE, cursor: cursorRef.current } }
       );
-      setNotifications((prev) => [...prev, ...data.data]);
+      setNotifications((prev) => [...prev, ...data.notifications]);
       cursorRef.current = data.nextCursor;
     } catch (err) {
       setError("Couldn't load more notifications.");

@@ -1,30 +1,7 @@
-// frontend/src/pages/LoginPage.tsx
-//
-// Consumes AuthContext.tsx's login(email, password) — per the doc, that
-// context already handles the JWT access token + refresh cookie exchange
-// and exposes `user`/`isLoading`; this page just wires it into a form and
-// a post-login redirect.
-//
-// Redirect behavior:
-//   - If a ProtectedRoute bounced the user here, react-router puts the
-//     original destination in location.state.from — go back there on
-//     success instead of always landing on the role's default dashboard.
-//   - Otherwise, redirect by role to that role's dashboard route. Route
-//     paths here (/admin, /pm, /developer) are a guess — update
-//     ROUTE_BY_ROLE to match whatever you register in App.tsx.
-//   - If already authenticated on mount (e.g. back button to /login after
-//     logging in), redirect immediately rather than showing the form.
-//
-// ASSUMPTIONS:
-//   - useAuth() is exported from context/AuthContext.tsx, returning
-//     { user, isLoading, login }, where login(email, password) throws on
-//     failure (bad credentials -> rejected promise) and resolves on success
-//   - user.role is one of "ADMIN" | "PM" | "DEVELOPER" (Domain.ts's Role)
-
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import type { Role } from "../hooks/Domain";
+import type { Role } from "../types/domain";
 
 const ROUTE_BY_ROLE: Record<Role, string> = {
   ADMIN: "/admin",
@@ -51,8 +28,6 @@ export default function LoginPage() {
     return state?.from?.pathname ?? ROUTE_BY_ROLE[loggedInUser.role];
   };
 
-  // Already logged in (e.g. navigated back to /login manually) — bounce
-  // straight to the dashboard instead of showing the form again.
   useEffect(() => {
     if (!isLoading && user) {
       navigate(redirectTarget(user), { replace: true });
@@ -75,57 +50,141 @@ export default function LoginPage() {
     }
   };
 
-  // Session restore (silent-refresh-on-mount) still in flight — avoid a
-  // flash of the login form for someone who's actually already signed in.
+  const fillQuickLogin = (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword("Password123!");
+    setError(null);
+  };
+
   if (isLoading) {
     return (
       <div className="login-page">
-        <p className="login-page__status-text">Checking your session…</p>
+        <div className="login-page__loader">
+          <div className="spinner" />
+          <p className="login-page__status-text">Verifying session…</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="login-page">
+      <div className="login-page__ambient-glow login-page__ambient-glow--1" />
+      <div className="login-page__ambient-glow login-page__ambient-glow--2" />
+
       <form className="login-page__card" onSubmit={handleSubmit}>
-        <h1 className="login-page__title">Sign in</h1>
-        <p className="login-page__subtitle">
-          Client Project Dashboard
-        </p>
+        <div className="login-page__brand">
+          <div className="login-page__logo-mark">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </div>
+          <h1 className="login-page__title">Velozity Ops</h1>
+          <p className="login-page__subtitle">Enterprise Project Operations Hub</p>
+        </div>
 
-        <label className="login-page__field">
-          <span className="login-page__field-label">Email</span>
-          <input
-            className="input login-page__input"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
-        </label>
+        <div className="login-page__form-fields">
+          <label className="login-page__field">
+            <span className="login-page__field-label">Email address</span>
+            <div className="login-page__input-wrapper">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+              <input
+                className="input login-page__input"
+                type="email"
+                placeholder="name@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
+            </div>
+          </label>
 
-        <label className="login-page__field">
-          <span className="login-page__field-label">Password</span>
-          <input
-            className="input login-page__input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </label>
+          <label className="login-page__field">
+            <span className="login-page__field-label">Password</span>
+            <div className="login-page__input-wrapper">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <input
+                className="input login-page__input"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </div>
+          </label>
+        </div>
 
-        {error && <p className="login-page__error">{error}</p>}
+        {error && (
+          <div className="login-page__error">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{error}</span>
+          </div>
+        )}
 
         <button
           type="submit"
           className="button button--primary login-page__submit"
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Signing in…" : "Sign in"}
+          {isSubmitting ? (
+            <span className="button__spinner-flex">
+              <span className="spinner spinner--sm" />
+              <span>Signing in…</span>
+            </span>
+          ) : (
+            "Sign In"
+          )}
         </button>
+
+        {/* Quick Demo Access Pills */}
+        <div className="login-page__demo-section">
+          <span className="login-page__demo-label">Quick Sign In</span>
+          <div className="login-page__demo-pills">
+            <button
+              type="button"
+              className="login-page__demo-pill"
+              onClick={() => fillQuickLogin("admin@company.com")}
+            >
+              Admin
+            </button>
+            <button
+              type="button"
+              className="login-page__demo-pill"
+              onClick={() => fillQuickLogin("pm@company.com")}
+            >
+              PM
+            </button>
+            <button
+              type="button"
+              className="login-page__demo-pill"
+              onClick={() => fillQuickLogin("dev@company.com")}
+            >
+              Developer
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   );

@@ -9,6 +9,9 @@ const router = Router();
 const listQuerySchema = z.object({
   projectId: z.string().uuid().optional(),
   taskId: z.string().uuid().optional(),
+  userId: z.string().uuid().optional(),
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   cursor: z.string().uuid().optional(),
 });
@@ -21,12 +24,21 @@ router.get(
   validate({ query: listQuerySchema }),
   async (req, res, next) => {
     try {
-      const { projectId, taskId, limit, cursor } =
+      const { projectId, taskId, userId, dateFrom, dateTo, limit, cursor } =
         req.query as unknown as z.infer<typeof listQuerySchema>;
 
       const where: Record<string, unknown> = {
         ...(projectId ? { projectId } : {}),
         ...(taskId ? { taskId } : {}),
+        ...(userId ? { userId } : {}),
+        ...((dateFrom || dateTo)
+          ? {
+              createdAt: {
+                ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+                ...(dateTo ? { lte: new Date(dateTo) } : {}),
+              },
+            }
+          : {}),
       };
 
       // Scope feed based on user role

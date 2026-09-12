@@ -1,16 +1,3 @@
-// frontend/src/components/FilterBar.tsx
-//
-// Filters for any task list (status, priority, due-date range), synced to
-// the URL via useSearchParams — per spec, filters must be shareable as a
-// URL, not just held in local component state. The URL is the single
-// source of truth here: there's no separate `useState` for the filter
-// values that could drift out of sync with what's in the address bar.
-//
-// Usage: drop this above a task list component that reads the same
-// `useSearchParams()` (or receives the parsed filters as props) to build
-// its `GET /api/tasks?...` query — this component only owns the controls,
-// not the fetching.
-
 import { useSearchParams } from 'react-router-dom';
 import { ChangeEvent } from 'react';
 
@@ -39,9 +26,6 @@ export function FilterBar() {
   const dueFrom = searchParams.get('dueFrom') ?? '';
   const dueTo = searchParams.get('dueTo') ?? '';
 
-  // Sets or removes a single param without disturbing the others already
-  // in the URL (e.g. changing status shouldn't wipe out a due-date range
-  // someone already set).
   function updateParam(key: string, value: string) {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -74,55 +58,80 @@ export function FilterBar() {
 
   return (
     <div className="filter-bar">
-      <div className="filter-bar__field">
-        <label htmlFor="filter-status">Status</label>
-        <select id="filter-status" value={status} onChange={handleSelectChange('status')}>
-          {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+      <div className="filter-bar__header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+        </svg>
+        <span>Filter Tasks</span>
       </div>
 
-      <div className="filter-bar__field">
-        <label htmlFor="filter-priority">Priority</label>
-        <select id="filter-priority" value={priority} onChange={handleSelectChange('priority')}>
-          {PRIORITY_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <div className="filter-bar__fields">
+        <div className="filter-bar__field">
+          <label htmlFor="filter-status">Status</label>
+          <div className="select-wrapper">
+            <select id="filter-status" value={status} onChange={handleSelectChange('status')}>
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <svg className="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        </div>
 
-      <div className="filter-bar__field">
-        <label htmlFor="filter-due-from">Due from</label>
-        <input
-          id="filter-due-from"
-          type="date"
-          value={dueFrom}
-          onChange={handleDateChange('dueFrom')}
-          max={dueTo || undefined}
-        />
-      </div>
+        <div className="filter-bar__field">
+          <label htmlFor="filter-priority">Priority</label>
+          <div className="select-wrapper">
+            <select id="filter-priority" value={priority} onChange={handleSelectChange('priority')}>
+              {PRIORITY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <svg className="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        </div>
 
-      <div className="filter-bar__field">
-        <label htmlFor="filter-due-to">Due to</label>
-        <input
-          id="filter-due-to"
-          type="date"
-          value={dueTo}
-          onChange={handleDateChange('dueTo')}
-          min={dueFrom || undefined}
-        />
-      </div>
+        <div className="filter-bar__field">
+          <label htmlFor="filter-due-from">Due from</label>
+          <input
+            id="filter-due-from"
+            type="date"
+            className="input input--date"
+            value={dueFrom}
+            onChange={handleDateChange('dueFrom')}
+            max={dueTo || undefined}
+          />
+        </div>
 
-      {hasActiveFilters && (
-        <button type="button" className="filter-bar__clear" onClick={clearAll}>
-          Clear filters
-        </button>
-      )}
+        <div className="filter-bar__field">
+          <label htmlFor="filter-due-to">Due to</label>
+          <input
+            id="filter-due-to"
+            type="date"
+            className="input input--date"
+            value={dueTo}
+            onChange={handleDateChange('dueTo')}
+            min={dueFrom || undefined}
+          />
+        </div>
+
+        {hasActiveFilters && (
+          <button type="button" className="filter-bar__clear" onClick={clearAll}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Clear</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

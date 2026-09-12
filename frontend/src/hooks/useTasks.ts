@@ -65,10 +65,10 @@ export function useTasks({ projectId, filters }: UseTasksOptions): UseTasksResul
     setIsLoading(true);
     setError(null);
     try {
-      const { data } = await apiClient.get<CursorPage<Task>>("/api/tasks", {
+      const { data } = await apiClient.get<{ tasks: Task[]; nextCursor: string | null }>("/api/tasks", {
         params: { projectId, ...filters, limit: PAGE_SIZE },
       });
-      setTasks(data.data);
+      setTasks(data.tasks);
       cursorRef.current = data.nextCursor;
     } catch (err) {
       setError("Couldn't load tasks.");
@@ -87,10 +87,10 @@ export function useTasks({ projectId, filters }: UseTasksOptions): UseTasksResul
     setIsLoadingMore(true);
     setError(null);
     try {
-      const { data } = await apiClient.get<CursorPage<Task>>("/api/tasks", {
+      const { data } = await apiClient.get<{ tasks: Task[]; nextCursor: string | null }>("/api/tasks", {
         params: { projectId, ...filters, limit: PAGE_SIZE, cursor: cursorRef.current },
       });
-      setTasks((prev) => [...prev, ...data.data]);
+      setTasks((prev) => [...prev, ...data.tasks]);
       cursorRef.current = data.nextCursor;
     } catch (err) {
       setError("Couldn't load more tasks.");

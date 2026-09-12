@@ -1,5 +1,3 @@
-
-
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
@@ -64,8 +62,6 @@ router.get(
     try {
       const { role } = req.query as unknown as z.infer<typeof listQuerySchema>;
 
-      // PM cannot broaden this beyond DEVELOPER no matter what they pass —
-      // enforced here, not trusted from the query string.
       const effectiveRole = req.user!.role === 'PM' ? 'DEVELOPER' : role;
 
       const users = await prisma.user.findMany({
@@ -82,13 +78,62 @@ router.get(
 );
 
 // ---------------------------------------------------------------------------
+// GET /api/users/developer-stats (Admin only)
+// Returns list of developers with count of distinct projects they are assigned to
+// ---------------------------------------------------------------------------
+
+router.get(
+  '/developer-stats',
+  requireAuth,
+  requireRole('ADMIN'),
+  async (req, res, next) => {
+    try {
+      const developers = await prisma.user.findMany({
+        where: { role: 'DEVELOPER' },
+        select: SAFE_USER_SELECT,
+        orderBy: { name: 'asc' },
+      });
+
+      const devIds = developers.map((d) => d.id);
+
+      const taskAssignments = await prisma.task.findMany({
+        where: {
+          assignedToId: { in: devIds },
+        },
+        select: {
+          assignedToId: true,
+          projectId: true,
+        },
+        distinct: ['assignedToId', 'projectId'],
+      });
+
+      const projectCountMap: Record<string, number> = {};
+      for (const row of taskAssignments) {
+        if (row.assignedToId) {
+          projectCountMap[row.assignedToId] = (projectCountMap[row.assignedToId] ?? 0) + 1;
+        }
+      }
+
+      const stats = developers.map((dev) => ({
+        ...dev,
+        projectCount: projectCountMap[dev.id] ?? 0,
+      }));
+
+      res.json({ developers: stats });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
 // GET /api/users/:id
 // ---------------------------------------------------------------------------
 
 router.get(
   '/:id',
   requireAuth,
-  requireRole('ADMIN'),
+  requireRole('ADMIN', 'PM'),
   validate({ params: idParamSchema }),
   async (req, res, next) => {
     try {
@@ -112,6 +157,7 @@ router.get(
 
 // ---------------------------------------------------------------------------
 // POST /api/users
+// Accessible by ADMIN only
 // ---------------------------------------------------------------------------
 
 router.post(
@@ -173,22 +219,13 @@ router.patch(
 
       res.json({ user });
     } catch (err) {
-      next(err); // errorHandler maps Prisma P2025 (not found) to a clean 404
+      next(err);
     }
   }
 );
 
 // ---------------------------------------------------------------------------
 // DELETE /api/users/:id
-//
-// Hard delete. Cascade behavior comes entirely from the schema, not logic
-// here: Task.assignedToId -> SET NULL (their tasks survive, unassigned),
-// ActivityLog.userId -> SET NULL (audit trail survives), Notification.userId
-// -> CASCADE (their own notifications are removed with them),
-// Project.createdById -> RESTRICT (a PM who still owns projects cannot be
-// deleted until those projects are reassigned or removed — Prisma will
-// throw a foreign-key error, which the global error handler should map to
-// a 409, not a 500; add that P-code mapping in error.ts if you hit it).
 // ---------------------------------------------------------------------------
 
 router.delete(

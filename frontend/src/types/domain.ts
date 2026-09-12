@@ -24,7 +24,17 @@ export interface Project {
   createdById: string;
   createdAt: string;
   _count?: { tasks: number };
-  taskCounts?: Partial<Record<TaskStatus, number>>;
+  taskCounts?: Record<TaskStatus, number>;
+  overdueCount?: number;
+  memberCount?: number;
+}
+
+export interface DeveloperStat {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  projectCount: number;
 }
 
 export interface Task {

@@ -1,25 +1,9 @@
-// frontend/src/pages/AdminAuditLogPage.tsx
-//
-// Full audit trail for Admins: every ActivityLog row across every project,
-// filterable and paginated, with new events appearing live. This is
-// distinct from ActivityFeed.tsx (the compact live widget on a dashboard) —
-// this page is the "go back and look something up" view, so it leads with
-// filters and a dense table rather than a scrolling feed.
-//
-// Route guard: wrap this with your ProtectedRoute(role="ADMIN") — it
-// doesn't check the role itself, matching the pattern of your other
-// dashboard pages trusting the router for that.
-//
-// ASSUMPTIONS:
-//   - GET /api/users?role=&limit= -> UserSummary[] (for the "user" filter
-//     dropdown; admin-only per user.routes.ts's "Admin CRUD" note in the doc)
-
 import { useEffect, useState } from "react";
 import { apiClient } from "../lib/api";
 import { useProjects } from "../hooks/useProjects";
-import { useAuditLog, type AuditLogFilters } from "../lib/useAuditLog"
+import { useAuditLog, type AuditLogFilters } from "../lib/useAuditLog";
 import { formatActivityLine } from "../lib/time";
-import type { UserSummary } from "../hooks/Domain";
+import type { UserSummary } from "../types/domain";
 
 function toDateOnly(iso: string | undefined): string {
   if (!iso) return "";
@@ -41,12 +25,9 @@ export default function AdminAuditLogPage() {
 
   useEffect(() => {
     apiClient
-      .get<UserSummary[]>("/api/users")
-      .then(({ data }) => setUsers(data))
-      .catch(() => {
-        // Non-fatal: the user filter just won't populate. The log itself
-        // still loads independently.
-      });
+      .get<{ users: UserSummary[] }>("/api/users")
+      .then(({ data }) => setUsers(data.users || []))
+      .catch(() => setUsers([]));
   }, []);
 
   const { entries, isLoading, isLoadingMore, hasMore, error, loadMore } =
@@ -82,64 +63,78 @@ export default function AdminAuditLogPage() {
   return (
     <div className="audit-log">
       <header className="audit-log__header">
-        <h1 className="audit-log__title">Audit log</h1>
-        <p className="audit-log__subtitle">
-          Every task status change and assignment, across every project.
-        </p>
+        <div>
+          <h1 className="audit-log__title">System Audit Log</h1>
+          <p className="audit-log__subtitle">
+            Complete, immutable security & activity audit trail across all organization projects
+          </p>
+        </div>
       </header>
 
-      <div className="audit-log__filters">
-        <label className="audit-log__filter">
+      <div className="audit-log__filters card">
+        <div className="audit-log__filter">
           <span className="audit-log__filter-label">Project</span>
-          <select
-            className="audit-log__select"
-            value={filters.projectId ?? ""}
-            onChange={(e) => handleProjectChange(e.target.value)}
-          >
-            <option value="">All projects</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <div className="select-wrapper">
+            <select
+              className="audit-log__select"
+              value={filters.projectId ?? ""}
+              onChange={(e) => handleProjectChange(e.target.value)}
+            >
+              <option value="">All projects</option>
+              {Array.isArray(projects) &&
+                projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+            </select>
+            <svg className="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        </div>
 
-        <label className="audit-log__filter">
+        <div className="audit-log__filter">
           <span className="audit-log__filter-label">User</span>
-          <select
-            className="audit-log__select"
-            value={filters.userId ?? ""}
-            onChange={(e) => handleUserChange(e.target.value)}
-          >
-            <option value="">All users</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <div className="select-wrapper">
+            <select
+              className="audit-log__select"
+              value={filters.userId ?? ""}
+              onChange={(e) => handleUserChange(e.target.value)}
+            >
+              <option value="">All users</option>
+              {Array.isArray(users) &&
+                users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+            </select>
+            <svg className="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        </div>
 
-        <label className="audit-log__filter">
+        <div className="audit-log__filter">
           <span className="audit-log__filter-label">From</span>
           <input
-            className="audit-log__date-input"
+            className="audit-log__date-input input"
             type="date"
             value={toDateOnly(filters.dateFrom)}
             onChange={(e) => handleDateFromChange(e.target.value)}
           />
-        </label>
+        </div>
 
-        <label className="audit-log__filter">
+        <div className="audit-log__filter">
           <span className="audit-log__filter-label">To</span>
           <input
-            className="audit-log__date-input"
+            className="audit-log__date-input input"
             type="date"
             value={toDateOnly(filters.dateTo)}
             onChange={(e) => handleDateToChange(e.target.value)}
           />
-        </label>
+        </div>
 
         {hasActiveFilters && (
           <button
@@ -147,68 +142,96 @@ export default function AdminAuditLogPage() {
             className="audit-log__clear-button"
             onClick={clearFilters}
           >
-            Clear filters
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Reset</span>
           </button>
         )}
       </div>
 
-      {error && <p className="audit-log__error">{error}</p>}
+      {error && <div className="audit-log__error-banner">{error}</div>}
 
       {isLoading ? (
-        <p className="audit-log__status">Loading audit log…</p>
+        <div className="audit-log__loading">
+          <div className="spinner" />
+          <span>Fetching audit events…</span>
+        </div>
       ) : entries.length === 0 ? (
-        <p className="audit-log__empty">
-          {hasActiveFilters
-            ? "No activity matches these filters."
-            : "No activity recorded yet."}
-        </p>
+        <div className="empty-state">
+          <p>
+            {hasActiveFilters
+              ? "No activity logs match these criteria."
+              : "No system audit events recorded yet."}
+          </p>
+        </div>
       ) : (
-        <>
+        <div className="audit-log__table-container card">
           <table className="audit-log__table">
             <thead>
               <tr>
-                <th>Event</th>
-                <th>Project</th>
-                <th>When</th>
+                <th>Event Activity</th>
+                <th>Project Scope</th>
+                <th>Timestamp</th>
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry) => (
-                <tr key={entry.id} className="audit-log__row">
-                  <td className="audit-log__cell">
-                    {formatActivityLine({
-                      userName: entry.userName,
-                      action: entry.action,
-                      taskLabel: entry.taskTitle
-                        ? `"${entry.taskTitle}"`
-                        : `Task ${entry.taskId.slice(0, 8)}`,
-                      fromValue: entry.fromValue,
-                      toValue: entry.toValue,
-                      createdAt: entry.createdAt,
-                    })}
-                  </td>
-                  <td className="audit-log__cell audit-log__cell--project">
-                    {entry.projectName ?? "—"}
-                  </td>
-                  <td className="audit-log__cell audit-log__cell--time">
-                    {new Date(entry.createdAt).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
+              {entries.map((entry) => {
+                const taskLabel = entry.taskTitle
+                  ? `"${entry.taskTitle}"`
+                  : entry.taskId
+                  ? `Task ${entry.taskId.slice(0, 8)}`
+                  : "Task";
+
+                return (
+                  <tr key={entry.id} className="audit-log__row">
+                    <td className="audit-log__cell audit-log__cell--activity">
+                      <span className="audit-log__activity-text">
+                        {formatActivityLine({
+                          userName: entry.userName,
+                          action: entry.action,
+                          taskLabel,
+                          fromValue: entry.fromValue,
+                          toValue: entry.toValue,
+                          createdAt: entry.createdAt,
+                        })}
+                      </span>
+                    </td>
+                    <td className="audit-log__cell audit-log__cell--project">
+                      {entry.projectName ? (
+                        <span className="badge badge--neutral">{entry.projectName}</span>
+                      ) : (
+                        <span className="audit-log__muted">—</span>
+                      )}
+                    </td>
+                    <td className="audit-log__cell audit-log__cell--time">
+                      <span className="audit-log__timestamp">
+                        {new Date(entry.createdAt).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
           {hasMore && (
-            <button
-              type="button"
-              className="audit-log__load-more"
-              onClick={loadMore}
-              disabled={isLoadingMore}
-            >
-              {isLoadingMore ? "Loading…" : "Load more"}
-            </button>
+            <div className="audit-log__load-more-wrapper">
+              <button
+                type="button"
+                className="button button--secondary audit-log__load-more"
+                onClick={loadMore}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? "Loading entries…" : "Load More Records"}
+              </button>
+            </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
