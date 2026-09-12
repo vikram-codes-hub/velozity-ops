@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { apiClient, getApiErrorMessage } from "../lib/api";
 import { useProjects } from "../hooks/useProjects";
+import { useTaskDescriptionAI } from "../hooks/useAI";
 import type { Priority, UserSummary } from "../types/domain";
 
 interface CreateTaskModalProps {
@@ -17,6 +18,7 @@ export function CreateTaskModal({
   defaultProjectId,
 }: CreateTaskModalProps) {
   const { projects } = useProjects();
+  const { isLoading: isAILoading, generate: generateDescription } = useTaskDescriptionAI();
   const [users, setUsers] = useState<UserSummary[]>([]);
 
   const [projectId, setProjectId] = useState(defaultProjectId || "");
@@ -89,6 +91,14 @@ export function CreateTaskModal({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const selectedProject = projects.find((p) => p.id === projectId);
+
+  const handleAIDescription = async () => {
+    if (!title.trim()) return;
+    const result = await generateDescription(title, selectedProject?.name);
+    if (result) setDescription(result);
   };
 
   return (
@@ -203,7 +213,25 @@ export function CreateTaskModal({
             </div>
 
             <div className="modal-field full-width">
-              <label htmlFor="task-description">Description</label>
+              <div className="ai-desc-label">
+                <label htmlFor="task-description">Description</label>
+                <button
+                  type="button"
+                  className="ai-desc-btn"
+                  onClick={handleAIDescription}
+                  disabled={isAILoading || !title.trim()}
+                  title={title.trim() ? 'Auto-generate description with AI' : 'Enter a task title first'}
+                >
+                  {isAILoading ? (
+                    <span className="spinner spinner--xs" />
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 3c0 4.5-3.5 8-8 8 4.5 0 8 3.5 8 8 0-4.5 3.5-8 8-8-4.5 0-8-3.5-8-8z" />
+                    </svg>
+                  )}
+                  <span>{isAILoading ? 'Generating…' : 'AI Write'}</span>
+                </button>
+              </div>
               <textarea
                 id="task-description"
                 className="input textarea"

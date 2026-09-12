@@ -1,9 +1,12 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAdminStats } from "../hooks/useAdminStats";
 import { useDeveloperStats } from "../hooks/useDeveloperStats";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { ProjectCard } from "../components/ProjectCard";
 import { AdminCharts } from "../components/AdminCharts";
+import { AIChatPanel } from "../components/AIChatPanel";
+import { UserDetailModal, type UserDetailData } from "../components/UserDetailModal";
 import { useProjects } from "../hooks/useProjects";
 import type { TaskStatus } from "../types/domain";
 
@@ -44,8 +47,18 @@ function StatCard({
 
 export default function AdminDashboardPage() {
   const stats = useAdminStats();
-  const { developers, isLoading: devsLoading } = useDeveloperStats();
-  const { projects, isLoading: projectsLoading } = useProjects();
+  const { developers, isLoading: devsLoading, refetch: refetchDevs } = useDeveloperStats();
+  const { projects, isLoading: projectsLoading, refetch: refetchProjects } = useProjects();
+  const [selectedUser, setSelectedUser] = useState<UserDetailData | null>(null);
+
+  useEffect(() => {
+    const handleDataChanged = () => {
+      refetchProjects();
+      refetchDevs();
+    };
+    window.addEventListener("velozity:data-changed", handleDataChanged);
+    return () => window.removeEventListener("velozity:data-changed", handleDataChanged);
+  }, [refetchProjects, refetchDevs]);
 
   const totalTasksCount = stats.totalTasks || 1; // avoid divide by zero
 
@@ -180,7 +193,12 @@ export default function AdminDashboardPage() {
         ) : (
           <div className="members-panel__grid">
             {developers.map((dev) => (
-              <div key={dev.id} className="members-panel__card">
+              <div
+                key={dev.id}
+                className="members-panel__card members-panel__card--clickable"
+                onClick={() => setSelectedUser(dev)}
+                title={`Click to view details or reset password for ${dev.name}`}
+              >
                 <div className="members-panel__avatar">
                   {dev.name.charAt(0).toUpperCase()}
                 </div>
@@ -228,6 +246,16 @@ export default function AdminDashboardPage() {
           <ActivityFeed />
         </section>
       </div>
+
+      {/* Admin User Detail & Password Reset Modal */}
+      <UserDetailModal
+        isOpen={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+        user={selectedUser}
+      />
+
+      {/* Floating AI Assistant */}
+      <AIChatPanel />
     </div>
   );
 }

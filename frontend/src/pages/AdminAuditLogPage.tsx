@@ -167,7 +167,7 @@ export default function AdminAuditLogPage() {
           </p>
         </div>
       ) : (
-        <div className="audit-log__table-container card">
+        <div className="audit-log__table-container card table-responsive">
           <table className="audit-log__table">
             <thead>
               <tr>

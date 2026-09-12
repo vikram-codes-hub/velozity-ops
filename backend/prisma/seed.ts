@@ -8,7 +8,7 @@ async function main() {
 
   const passwordHash = await bcrypt.hash("Password123!", 10);
 
-  // ── Users (upsert = safe to re-run) ──────────────────────────────────────
+  // ── Users
   const admin = await prisma.user.upsert({
     where: { email: "admin@velozity.com" },
     update: { passwordHash },
@@ -54,7 +54,7 @@ async function main() {
     )
   );
 
-  // ── Clients (find-or-create by name) ─────────────────────────────────────
+  // Clients (find-or-create by name)
   async function findOrCreateClient(name: string) {
     const existing = await prisma.client.findFirst({ where: { name } });
     if (existing) return existing;
@@ -65,7 +65,7 @@ async function main() {
   const client2 = await findOrCreateClient("Globex Inc");
   const client3 = await findOrCreateClient("Initech");
 
-  // ── Projects (find-or-create by name + clientId) ──────────────────────────
+  //Projects (find-or-create by name + clientId)
   async function findOrCreateProject(name: string, clientId: string, createdById: string) {
     const existing = await prisma.project.findFirst({ where: { name, clientId } });
     if (existing) return existing;

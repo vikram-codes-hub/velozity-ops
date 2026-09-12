@@ -237,12 +237,51 @@ router.delete(
     try {
       const { id } = req.params as unknown as z.infer<typeof idParamSchema>;
 
-      if (id === req.user!.id) {
-        throw new ApiError(400, 'CANNOT_DELETE_SELF', 'You cannot delete your own account.');
-      }
-
       await prisma.user.delete({ where: { id } });
       res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// POST /api/users/:id/reset-password (ADMIN only)
+// Resets a user's password and increments tokenVersion to revoke old sessions.
+// ---------------------------------------------------------------------------
+
+const resetPasswordSchema = z.object({
+  newPassword: z.string().min(8, 'New password must be at least 8 characters.'),
+});
+
+router.post(
+  '/:id/reset-password',
+  requireAuth,
+  requireRole('ADMIN'),
+  validate({ params: idParamSchema, body: resetPasswordSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as unknown as z.infer<typeof idParamSchema>;
+      const { newPassword } = req.body;
+
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user) {
+        throw new ApiError(404, 'NOT_FOUND', 'User not found.');
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+      await prisma.user.update({
+        where: { id },
+        data: {
+          passwordHash,
+          tokenVersion: { increment: 1 },
+        },
+      });
+
+      res.json({
+        message: `Password for ${user.name} (${user.email}) has been successfully reset.`,
+      });
     } catch (err) {
       next(err);
     }

@@ -99,7 +99,7 @@ export function ActivityFeed({ projectId, limit = 20 }: ActivityFeedProps) {
   return (
     <ul className="activity-feed">
       {events.map((event) => {
-        const displayMessage =
+        const rawMessage =
           event.message ||
           formatActivityLine({
             userName: event.userName ?? event.actorName,
@@ -107,8 +107,10 @@ export function ActivityFeed({ projectId, limit = 20 }: ActivityFeedProps) {
             taskLabel: event.taskTitle ?? (event.taskId ? `Task #${event.taskId.slice(0, 6)}` : 'Project'),
             fromValue: event.fromValue,
             toValue: event.toValue,
-            createdAt: event.createdAt,
           });
+
+        // Clean out any embedded "· X hours ago" inline strings to avoid duplication
+        const cleanMessage = rawMessage.replace(/\s*·\s*[\d\w\s]+ago.*$/i, '').trim();
 
         return (
           <li key={event.id} className="activity-feed__item">
@@ -116,7 +118,7 @@ export function ActivityFeed({ projectId, limit = 20 }: ActivityFeedProps) {
               <span className="activity-feed__dot" />
             </div>
             <div className="activity-feed__content">
-              <p className="activity-feed__message">{displayMessage}</p>
+              <p className="activity-feed__message">{cleanMessage}</p>
               <span className="activity-feed__time">
                 {formatDistanceToNow(new Date(event.createdAt), { addSuffix: true })}
               </span>

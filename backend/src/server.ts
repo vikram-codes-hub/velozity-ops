@@ -17,7 +17,8 @@ import clientRoutes from './routes/client.routes';
 import projectRoutes from './routes/project.routes';
 import taskRoutes from './routes/task.routes';
 import notificationRoutes from './routes/notification.routes';
-import activityRoutes from './routes/activity.routes'
+import activityRoutes from './routes/activity.routes';
+import aiRoutes from './routes/ai.routes';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173';
@@ -51,6 +52,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/activity', activityRoutes);
+app.use('/api/ai', aiRoutes);
 
 
 

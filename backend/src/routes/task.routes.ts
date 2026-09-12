@@ -137,6 +137,10 @@ router.get(
         orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }],
         take: limit,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        include: {
+          assignedTo: { select: { id: true, name: true } },
+          project:    { select: { id: true, name: true } },
+        },
       });
 
       const nextCursor = tasks.length === limit ? tasks[tasks.length - 1].id : null;

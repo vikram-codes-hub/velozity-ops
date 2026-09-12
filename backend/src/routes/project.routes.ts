@@ -4,6 +4,12 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { ApiError } from '../middleware/errorHandler';
+import { emitNotification, emitUnreadCount } from '../sockets';
+import type { Server } from 'socket.io';
+
+function getIO(req: { app: { get: (key: string) => unknown } }): Server | null {
+  return (req.app.get('io') as Server) || null;
+}
 
 const router = Router();
 
@@ -97,17 +103,14 @@ router.get(
       });
 
       // ---- per-project task analytics ----------------------------------------
-      // One grouped query for all projects returned above — avoids N+1 fetches.
       const projectIds = projects.map((p) => p.id);
 
       const [taskGroups, memberGroups] = await Promise.all([
-        // Task status breakdown per project
         prisma.task.groupBy({
           by: ['projectId', 'status'],
           where: { projectId: { in: projectIds } },
           _count: { id: true },
         }),
-        // Distinct assignees per project (member count)
         prisma.task.findMany({
           where: {
             projectId: { in: projectIds },
@@ -118,7 +121,6 @@ router.get(
         }),
       ]);
 
-      // Build lookup maps
       const taskCountsMap: Record<string, Record<string, number>> = {};
       for (const row of taskGroups) {
         if (!taskCountsMap[row.projectId]) taskCountsMap[row.projectId] = {};
@@ -218,6 +220,34 @@ router.post(
         },
       });
 
+      // Create & send notification to assigned PM / owner
+      const notificationMsg =
+        req.user!.role === 'ADMIN' && ownerId !== req.user!.id
+          ? `You were assigned as Project Manager for new project "${project.name}"`
+          : `Project "${project.name}" was successfully created`;
+
+      const notification = await prisma.notification.create({
+        data: {
+          userId: ownerId,
+          message: notificationMsg,
+        },
+      });
+
+      const io = getIO(req);
+      if (io) {
+        emitNotification(io, {
+          id: notification.id,
+          userId: ownerId,
+          message: notification.message,
+          taskId: null,
+          createdAt: notification.createdAt.toISOString(),
+        });
+        const unread = await prisma.notification.count({
+          where: { userId: ownerId, read: false },
+        });
+        emitUnreadCount(io, ownerId, unread);
+      }
+
       res.status(201).json({ project });
     } catch (err) {
       next(err);
@@ -269,6 +299,31 @@ router.patch(
           createdBy: { select: { id: true, name: true, email: true, role: true } },
         },
       });
+
+      // Send notification if PM owner was changed
+      if (updates.createdById && updates.createdById !== existing.createdById) {
+        const notification = await prisma.notification.create({
+          data: {
+            userId: updates.createdById,
+            message: `You were assigned as Project Manager for project "${project.name}"`,
+          },
+        });
+
+        const io = getIO(req);
+        if (io) {
+          emitNotification(io, {
+            id: notification.id,
+            userId: updates.createdById,
+            message: notification.message,
+            taskId: null,
+            createdAt: notification.createdAt.toISOString(),
+          });
+          const unread = await prisma.notification.count({
+            where: { userId: updates.createdById, read: false },
+          });
+          emitUnreadCount(io, updates.createdById, unread);
+        }
+      }
 
       res.json({ project });
     } catch (err) {

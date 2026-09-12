@@ -21,6 +21,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -58,8 +59,14 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="bg-glow-orb bg-glow-orb--top" />
       <div className="bg-glow-orb bg-glow-orb--bottom" />
 
+      {/* Mobile Backdrop Overlay */}
+      <div
+        className={`sidebar-backdrop ${isMobileSidebarOpen ? "active" : ""}`}
+        onClick={() => setIsMobileSidebarOpen(false)}
+      />
+
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isMobileSidebarOpen ? "sidebar--mobile-open" : ""}`}>
         <div className="sidebar__logo">
           <div className="sidebar__logo-mark">
             <svg
@@ -88,6 +95,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <>
               <Link
                 to="/admin"
+                onClick={() => setIsMobileSidebarOpen(false)}
                 className={`sidebar__link ${
                   location.pathname === "/admin" ? "sidebar__link--active" : ""
                 }`}
@@ -102,6 +110,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </Link>
               <Link
                 to="/audit-log"
+                onClick={() => setIsMobileSidebarOpen(false)}
                 className={`sidebar__link ${
                   location.pathname === "/audit-log" ? "sidebar__link--active" : ""
                 }`}
@@ -121,6 +130,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           {user?.role === "PM" && (
             <Link
               to="/pm"
+              onClick={() => setIsMobileSidebarOpen(false)}
               className={`sidebar__link ${
                 location.pathname === "/pm" ? "sidebar__link--active" : ""
               }`}
@@ -135,6 +145,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           {user?.role === "DEVELOPER" && (
             <Link
               to="/developer"
+              onClick={() => setIsMobileSidebarOpen(false)}
               className={`sidebar__link ${
                 location.pathname === "/developer" ? "sidebar__link--active" : ""
               }`}
@@ -177,9 +188,24 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Main Area */}
       <div className="app-shell__main">
         <header className="topbar">
-          <div className="topbar__status-pill">
-            <span className="topbar__status-dot" />
-            <span>System Live</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <button
+              type="button"
+              className="topbar__menu-toggle"
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              title="Toggle Navigation Menu"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+
+            <div className="topbar__status-pill">
+              <span className="topbar__status-dot" />
+              <span>System Live</span>
+            </div>
           </div>
 
           <div className="topbar__actions">
@@ -198,7 +224,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                       <line x1="20" y1="8" x2="20" y2="14" />
                       <line x1="17" y1="11" x2="23" y2="11" />
                     </svg>
-                    <span>+ Account</span>
+                    <span>New Account</span>
                   </button>
                 ) : (
                   <button
@@ -212,7 +238,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                       <circle cx="8.5" cy="7" r="4" />
                       <polyline points="17 11 19 13 23 9" />
                     </svg>
-                    <span>+ Member</span>
+                    <span>Assign Member</span>
                   </button>
                 )}
                 <button
@@ -221,10 +247,11 @@ export function AppLayout({ children }: AppLayoutProps) {
                   onClick={() => setIsProjectModalOpen(true)}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    <line x1="12" y1="11" x2="12" y2="17" />
+                    <line x1="9" y1="14" x2="15" y2="14" />
                   </svg>
-                  <span>Project</span>
+                  <span>New Project</span>
                 </button>
                 <button
                   type="button"
@@ -232,10 +259,10 @@ export function AppLayout({ children }: AppLayoutProps) {
                   onClick={() => setIsTaskModalOpen(true)}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="9 11 12 14 22 4" />
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                   </svg>
-                  <span>Task</span>
+                  <span>New Task</span>
                 </button>
               </>
             )}
@@ -253,24 +280,24 @@ export function AppLayout({ children }: AppLayoutProps) {
           <CreateTaskModal
             isOpen={isTaskModalOpen}
             onClose={() => setIsTaskModalOpen(false)}
-            onSuccess={() => window.location.reload()}
+            onSuccess={() => window.dispatchEvent(new CustomEvent('velozity:data-changed'))}
           />
           <CreateProjectModal
             isOpen={isProjectModalOpen}
             onClose={() => setIsProjectModalOpen(false)}
-            onSuccess={() => window.location.reload()}
+            onSuccess={() => window.dispatchEvent(new CustomEvent('velozity:data-changed'))}
           />
           {isAdmin && (
             <CreateUserModal
               isOpen={isUserModalOpen}
               onClose={() => setIsUserModalOpen(false)}
-              onSuccess={() => window.location.reload()}
+              onSuccess={() => window.dispatchEvent(new CustomEvent('velozity:data-changed'))}
             />
           )}
           <AssignTeamMemberModal
             isOpen={isAssignModalOpen}
             onClose={() => setIsAssignModalOpen(false)}
-            onSuccess={() => window.location.reload()}
+            onSuccess={() => window.dispatchEvent(new CustomEvent('velozity:data-changed'))}
           />
         </>
       )}

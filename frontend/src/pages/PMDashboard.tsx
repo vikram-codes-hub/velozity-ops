@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePmStats, PRIORITY_ORDER } from "../hooks/usePmStats";
 import { useProjects } from "../hooks/useProjects";
 import { useTasks } from "../hooks/useTasks";
@@ -6,6 +6,8 @@ import { ProjectCard } from "../components/ProjectCard";
 import { TaskCard } from "../components/TaskCard";
 import { CreateProjectModal } from "../components/CreateProjectModal";
 import { CreateTaskModal } from "../components/CreateTaskModal";
+import { AIChatPanel } from "../components/AIChatPanel";
+import { AIProjectSummary } from "../components/AIProjectSummary";
 import type { Priority, TaskStatus } from "../types/domain";
 
 const PRIORITY_LABELS: Record<Priority, string> = {
@@ -22,6 +24,14 @@ export default function PMDashboardPage() {
 
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleDataChanged = () => {
+      refetchProjects();
+    };
+    window.addEventListener("velozity:data-changed", handleDataChanged);
+    return () => window.removeEventListener("velozity:data-changed", handleDataChanged);
+  }, [refetchProjects]);
 
   const totalTasksCount = stats.totalTasks || 1;
 
@@ -174,8 +184,11 @@ export default function PMDashboardPage() {
       <CreateTaskModal
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
-        onSuccess={() => window.location.reload()}
+        onSuccess={() => refetchProjects()}
       />
+
+      {/* Floating AI Assistant */}
+      <AIChatPanel />
     </div>
   );
 }

@@ -53,11 +53,11 @@ export function formatActivityLine(params: {
   taskLabel: string;
   fromValue: string | null;
   toValue: string | null;
-  createdAt: string;
+  createdAt?: string;
 }): string {
-  const { userName, action, taskLabel, fromValue, toValue, createdAt } = params;
+  const { userName, action, taskLabel, fromValue, toValue } = params;
   const displayName = userName ?? "System";
   const verb = ACTION_VERBS[action] ?? action.toLowerCase().replace(/_/g, " ");
   const transition = fromValue && toValue ? ` from ${fromValue} \u2192 ${toValue}` : "";
-  return `${displayName} ${verb} ${taskLabel}${transition} \u00b7 ${formatRelativeTime(createdAt)}`;
+  return `${displayName} ${verb} ${taskLabel}${transition}`;
 }
