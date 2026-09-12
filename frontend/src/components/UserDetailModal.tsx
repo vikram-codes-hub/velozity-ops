@@ -43,7 +43,7 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
         .then(({ data }) => {
           // Filter tasks assigned to this developer
           const devTasks = (data.tasks || []).filter(
-            (t) => t.assignedToId === user.id || t.assignedTo?.id === user.id
+            (t) => (t as any).assignedToId === user.id || t.assignedTo?.id === user.id
           );
           setTasks(devTasks);
         })
@@ -60,10 +60,13 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
   const completedCount = completedTasks.length;
   const uncompletedCount = totalTasks - completedCount;
   const completionRate = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
-  const overdueCount = tasks.filter((t) => t.status === "OVERDUE").length;
-  const inProgressCount = tasks.filter((t) => t.status === "IN_PROGRESS").length;
-  const inReviewCount = tasks.filter((t) => t.status === "IN_REVIEW").length;
-  const todoCount = tasks.filter((t) => t.status === "TODO").length;
+  
+  const overdueTasks = tasks.filter((t) => t.status === "OVERDUE");
+  const inProgressTasks = tasks.filter((t) => t.status === "IN_PROGRESS");
+  const inReviewTasks = tasks.filter((t) => t.status === "IN_REVIEW");
+  const todoTasks = tasks.filter((t) => t.status === "TODO");
+
+  const overdueCount = overdueTasks.length;
 
   const handleGenerateRandomPassword = () => {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
@@ -104,9 +107,9 @@ export function UserDetailModal({ isOpen, onClose, user }: UserDetailModalProps)
     csvContent += `Completed Tasks (DONE),${completedCount}\n`;
     csvContent += `Completion Rate,${completionRate}%\n`;
     csvContent += `Uncompleted / Pending Tasks,${uncompletedCount}\n`;
-    csvContent += `  - In Progress,${inProgressCount}\n`;
-    csvContent += `  - In Review,${inReviewCount}\n`;
-    csvContent += `  - To Do,${todoCount}\n`;
+    csvContent += `  - In Progress,${inProgressTasks.length}\n`;
+    csvContent += `  - In Review,${inReviewTasks.length}\n`;
+    csvContent += `  - To Do,${todoTasks.length}\n`;
     csvContent += `  - Overdue,${overdueCount}\n`;
     csvContent += `=================================================================\n\n`;
 
