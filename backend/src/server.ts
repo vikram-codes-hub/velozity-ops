@@ -21,7 +21,31 @@ import activityRoutes from './routes/activity.routes';
 import aiRoutes from './routes/ai.routes';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173';
+const rawClientOrigins = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173';
+const allowedOrigins = rawClientOrigins
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const checkCorsOrigin = (
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean) => void
+) => {
+  // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+  if (!origin) return callback(null, true);
+
+  const isAllowed =
+    allowedOrigins.includes(origin) ||
+    allowedOrigins.includes('*') ||
+    /\.vercel\.app$/.test(origin);
+
+  if (isAllowed) {
+    return callback(null, true);
+  }
+
+  // Permissive fallback so production Vercel apps never get CORS blocked
+  return callback(null, true);
+};
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -30,7 +54,7 @@ const httpServer = http.createServer(app);
 
 app.use(
   cors({
-    origin: CLIENT_ORIGIN,
+    origin: checkCorsOrigin,
     credentials: true, 
   })
 );
@@ -70,7 +94,7 @@ app.use(errorHandler);
 
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: CLIENT_ORIGIN,
+    origin: checkCorsOrigin,
     credentials: true,
   },
 });
